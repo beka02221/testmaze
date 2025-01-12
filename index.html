@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Labyrinth Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #joystick {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 25vw;
+            height: 25vw;
+            max-width: 120px;
+            max-height: 120px;
+            border: 2px solid #666;
+            border-radius: 50%;
+            background: rgba(50, 50, 50, 0.8);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.4);
+            touch-action: none;
+        }
+
+        #joystick-inner {
+            width: 50%;
+            height: 50%;
+            background: #999;
+            border-radius: 50%;
+            position: relative;
+            top: 25%;
+            left: 25%;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #start-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #start-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="joystick" style="display: none;">
+        <div id="joystick-inner"></div>
+    </div>
+    <div id="ui" style="display: none;">
+        <p>Монеты: <span id="coin-counter">0</span></p>
+        <p>Время: <span id="timer">30</span></p>
+    </div>
+    <button id="start-button">Старт</button>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Enable shadows
+        document.body.appendChild(renderer.domElement);
+
+        window.addEventListener('resize', () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        let gameStarted = false;
+        let coins = [];
+        let teleportCubes = [];
+        let coinCount = 0;
+        let timer = 30;
+        let interval;
+
+        const coinCounterElement = document.getElementById('coin-counter');
+        const timerElement = document.getElementById('timer');
+        const startButton = document.getElementById('start-button');
+        const joystick = document.getElementById('joystick');
+        const ui = document.getElementById('ui');
+
+        startButton.addEventListener('click', startGame);
+
+        function startGame() {
+            gameStarted = true;
+            startButton.style.display = 'none';
+            joystick.style.display = 'block';
+            ui.style.display = 'block';
+            resetGame();
+            startTimer();
+        }
+
+        function resetGame() {
+            timer = 30;
+            coinCount = 0;
+            coinCounterElement.textContent = coinCount;
+            timerElement.textContent = timer;
+            generateMaze();
+            generateCoins();
+            generateTeleportCubes();
+        }
+
+        function startTimer() {
+            clearInterval(interval);
+            interval = setInterval(() => {
+                timer--;
+                timerElement.textContent = timer;
+                if (timer <= 0) {
+                    clearInterval(interval);
+                    alert('Время вышло! Вы собрали ' + coinCount + ' монет.');
+                    resetGame();
+                    startButton.style.display = 'block';
+                    joystick.style.display = 'none';
+                    ui.style.display = 'none';
+                    gameStarted = false;
+                }
+            }, 1000);
+        }
+
+        let maze = [];
+        const mazeSize = 10;
+        const cellSize = 5;
+        const boundarySize = mazeSize + 2;
+
+        const player = new THREE.Mesh(
+            new THREE.SphereGeometry(0.8, 32, 32),
+            new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+        );
+        player.castShadow = true;
+        scene.add(player);
+        player.position.set(0, 0.8, 0);
+
+        const boundaries = [];
+        for (let x = -boundarySize / 2; x <= boundarySize / 2; x++) {
+            for (let z = -boundarySize / 2; z <= boundarySize / 2; z++) {
+                if (Math.abs(x) === boundarySize / 2 || Math.abs(z) === boundarySize / 2) {
+                    const boundary = new THREE.Mesh(
+                        new THREE.BoxGeometry(cellSize, 2, cellSize),
+                        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+                    );
+                    boundary.position.set(x * cellSize, 1, z * cellSize);
+                    boundary.receiveShadow = true;
+                    boundaries.push(boundary);
+                    scene.add(boundary);
+                }
+            }
+        }
+
+        function generateMaze() {
+            maze.forEach(wall => scene.remove(wall));
+            maze = [];
+
+            for (let x = -mazeSize / 2; x < mazeSize / 2; x++) {
+                for (let z = -mazeSize / 2; z < mazeSize / 2; z++) {
+                    if (Math.random() > 0.7) {
+                        const wall = new THREE.Mesh(
+                            new THREE.BoxGeometry(cellSize, 2, cellSize),
+                            new THREE.MeshStandardMaterial({ color: 0xffffff })
+                        );
+                        wall.position.set(x * cellSize, 1, z * cellSize);
+                        wall.castShadow = true;
+                        wall.receiveShadow = true;
+                        if (Math.abs(wall.position.x - player.position.x) > cellSize ||
+                            Math.abs(wall.position.z - player.position.z) > cellSize) {
+                            maze.push(wall);
+                            scene.add(wall);
+                        }
+                    }
+                }
+            }
+        }
+
+        function generateCoins() {
+            coins.forEach(coin => scene.remove(coin));
+            coins = [];
+            for (let i = 0; i < 5; i++) {
+                const coin = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.3, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xffff00 })
+                );
+                const x = (Math.random() * mazeSize - mazeSize / 2) * cellSize;
+                const z = (Math.random() * mazeSize - mazeSize / 2) * cellSize;
+                coin.position.set(x, 0.5, z);
+                coins.push(coin);
+                scene.add(coin);
+            }
+        }
+
+        function collectCoin() {
+            coins = coins.filter(coin => {
+                const distance = player.position.distanceTo(coin.position);
+                if (distance < 1) {
+                    scene.remove(coin);
+                    coinCount++;
+                    coinCounterElement.textContent = coinCount;
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        function generateTeleportCubes() {
+            teleportCubes.forEach(cube => scene.remove(cube));
+            teleportCubes = [];
+            for (let i = 0; i < 3; i++) {
+                const cube = new THREE.Mesh(
+                    new THREE.BoxGeometry(1, 1, 1),
+                    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0000ff })
+                );
+
+                let x, z;
+                do {
+                    x = Math.floor(Math.random() * mazeSize - mazeSize / 2) * cellSize;
+                    z = Math.floor(Math.random() * mazeSize - mazeSize / 2) * cellSize;
+                } while (maze.some(wall => wall.position.x === x && wall.position.z === z));
+
+                cube.position.set(x, 0.5, z);
+                teleportCubes.push(cube);
+                scene.add(cube);
+            }
+        }
+
+        function teleportPlayer() {
+            let x, z;
+            do {
+                x = Math.floor(Math.random() * mazeSize - mazeSize / 2) * cellSize;
+                z = Math.floor(Math.random() * mazeSize - mazeSize / 2) * cellSize;
+            } while (maze.some(wall => wall.position.x === x && wall.position.z === z));
+            player.position.set(x, 0.8, z);
+        }
+
+        function checkTeleport() {
+            teleportCubes.forEach(cube => {
+                const distance = player.position.distanceTo(cube.position);
+                if (distance < 1) {
+                    teleportPlayer();
+                }
+            });
+        }
+
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(10, 20, 10);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        const joystickInner = document.getElementById('joystick-inner');
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let velocity = { x: 0, z: 0 };
+        const maxSpeed = 0.1;
+
+        joystick.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+        });
+
+        joystick.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            dragStartX = e.touches[0].clientX;
+            dragStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - dragStartX;
+            const deltaY = e.clientY - dragStartY;
+
+            const magnitude = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 50);
+            const normalizedX = deltaX / magnitude || 0;
+            const normalizedY = deltaY / magnitude || 0;
+
+            joystickInner.style.transform = `translate(${normalizedX * 50}px, ${normalizedY * 50}px)`;
+
+            velocity.x = normalizedX * maxSpeed;
+            velocity.z = normalizedY * maxSpeed;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - dragStartX;
+            const deltaY = touch.clientY - dragStartY;
+
+            const magnitude = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 50);
+            const normalizedX = deltaX / magnitude || 0;
+            const normalizedY = deltaY / magnitude || 0;
+
+            joystickInner.style.transform = `translate(${normalizedX * 50}px, ${normalizedY * 50}px)`;
+
+            velocity.x = normalizedX * maxSpeed;
+            velocity.z = normalizedY * maxSpeed;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            joystickInner.style.transform = 'translate(0, 0)';
+            velocity.x = 0;
+            velocity.z = 0;
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+            joystickInner.style.transform = 'translate(0, 0)';
+            velocity.x = 0;
+            velocity.z = 0;
+        });
+
+        function checkCollisions(newPosition) {
+            const originalPosition = player.position.clone();
+
+            player.position.x = newPosition.x;
+            const xCollision = maze.concat(boundaries).some(wall => {
+                const playerBox = new THREE.Box3().setFromObject(player);
+                return playerBox.intersectsBox(new THREE.Box3().setFromObject(wall));
+            });
+
+            if (xCollision) player.position.x = originalPosition.x;
+
+            player.position.z = newPosition.z;
+            const zCollision = maze.concat(boundaries).some(wall => {
+                const playerBox = new THREE.Box3().setFromObject(player);
+                return playerBox.intersectsBox(new THREE.Box3().setFromObject(wall));
+            });
+
+            if (zCollision) player.position.z = originalPosition.z;
+
+            return !xCollision && !zCollision;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameStarted) {
+                const newPosition = player.position.clone();
+                newPosition.x += velocity.x;
+                newPosition.z += velocity.z;
+
+                checkCollisions(newPosition);
+                collectCoin();
+                checkTeleport();
+            }
+
+            camera.position.lerp(
+                new THREE.Vector3(player.position.x, 20, player.position.z + 10),
+                0.1
+            );
+            camera.lookAt(player.position);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
