@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram MiniApp Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -38,7 +36,6 @@
     <p id="user-info">Загрузка данных...</p>
     <div id="buttons-container" style="display: none;">
         <button class="button" id="save-progress-btn">Сохранить прогресс</button>
-        <button class="button" id="load-progress-btn">Загрузить прогресс</button>
     </div>
 
     <script>
@@ -46,25 +43,7 @@
         const tg = window.Telegram.WebApp;
         tg.ready();
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAKw7TvjMqrNAgCP4lMjVFxaCWGfUSSXvI",
-            authDomain: "glitch-wallet-test.firebaseapp.com",
-            projectId: "glitch-wallet-test",
-            storageBucket: "glitch-wallet-test.appspot.com",
-            messagingSenderId: "153863222027",
-            appId: "1:153863222027:web:bca641b7c3bd890a21a80e",
-            measurementId: "G-V6F0LRQRG5"
-        };
-
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        // Get user info from Telegram
         const user = tg.initDataUnsafe?.user;
-
-        // Display user info or error
         const userInfoElement = document.getElementById('user-info');
         const buttonsContainer = document.getElementById('buttons-container');
 
@@ -75,44 +54,36 @@
             userInfoElement.textContent = 'Ошибка: У пользователя отсутствует username.';
         }
 
-        // Save progress function
-        async function saveProgress() {
-            try {
-                const progress = {
-                    username: user.username,
-                    score: Math.floor(Math.random() * 100),
-                    timestamp: new Date().toISOString(),
-                };
+        // Google Apps Script Web App URL
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbyFNM0jD9LWhH2W7EUCFaCJzQMmw6-E7iihDKer9PPiK6zMbf4vNuLeVBJLwDUpv1bu/exec';
 
-                await db.collection('players').doc(user.username).set(progress);
-                alert('Прогресс сохранён!');
+        // Сохранить прогресс в Google Sheets
+        async function saveProgress() {
+            const progress = {
+                username: user.username,
+                score: Math.floor(Math.random() * 100),
+            };
+
+            try {
+                const response = await fetch(scriptURL, {
+                    method: 'POST',
+                    body: JSON.stringify(progress),
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Прогресс сохранён!');
+                } else {
+                    alert('Ошибка сохранения: ' + result.message);
+                }
             } catch (error) {
                 console.error('Ошибка сохранения:', error);
                 alert('Ошибка сохранения: ' + error.message);
             }
         }
 
-        // Load progress function
-        async function loadProgress() {
-            try {
-                const docRef = db.collection('players').doc(user.username);
-                const docSnap = await docRef.get();
-
-                if (docSnap.exists) {
-                    const data = docSnap.data();
-                    alert(`Прогресс загружен!\nСчёт: ${data.score}\nПоследнее сохранение: ${data.timestamp}`);
-                } else {
-                    alert('Прогресс не найден.');
-                }
-            } catch (error) {
-                console.error('Ошибка загрузки:', error);
-                alert('Ошибка загрузки: ' + error.message);
-            }
-        }
-
-        // Attach event listeners to buttons
         document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
-        document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
     </script>
 </body>
 </html>
