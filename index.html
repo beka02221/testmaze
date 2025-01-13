@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram MiniApp Game</title>
+    <title>Telegram MiniApp Game12</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -36,12 +36,14 @@
     <button class="button" id="load-progress-btn" style="display: none;">Загрузить прогресс</button>
 
     <script>
+        // Telegram WebApp Initialization
         const tg = window.Telegram.WebApp;
         tg.ready();
 
         const user = tg.initDataUnsafe?.user;
         let score = 0;
 
+        // Check if user exists and display info
         if (user && user.username) {
             document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})!`;
             document.getElementById('save-progress-btn').style.display = 'block';
@@ -50,17 +52,25 @@
             document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
         }
 
+        // Clicker functionality
         document.getElementById('clicker-btn').addEventListener('click', () => {
             score++;
             document.getElementById('score').textContent = `Счёт: ${score}`;
         });
 
+        // Save progress to Google Sheets
         async function saveProgress() {
             try {
                 const response = await fetch('https://script.google.com/macros/s/AKfycbxNG2PnPW7l-QxDHhqbX1eq7t5q7IWk4sMwn8Ko4KJTh2cuE9Fo3rGlaqEM0iZUmJFy6Q/exec', {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'save', username: user.username, score }),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        action: 'save', 
+                        username: user.username, 
+                        score 
+                    }),
                 });
                 const result = await response.json();
                 alert(result.message || 'Прогресс сохранён!');
@@ -69,12 +79,18 @@
             }
         }
 
+        // Load progress from Google Sheets
         async function loadProgress() {
             try {
                 const response = await fetch('https://script.google.com/macros/s/AKfycbxNG2PnPW7l-QxDHhqbX1eq7t5q7IWk4sMwn8Ko4KJTh2cuE9Fo3rGlaqEM0iZUmJFy6Q/exec', {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'load', username: user.username }),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        action: 'load', 
+                        username: user.username 
+                    }),
                 });
                 const result = await response.json();
                 if (result.status === 'success') {
@@ -89,6 +105,7 @@
             }
         }
 
+        // Bind buttons
         document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
         document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
     </script>
