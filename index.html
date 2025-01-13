@@ -8,25 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f9;
-            margin: 0; padding: 20px;
-        }
-        h1 { color: #0088cc; }
-        .button {
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            background-color: #0088cc;
-            color: white;
-            cursor: pointer;
-            margin: 10px;
-        }
-        .button:hover { background-color: #005f99; }
-        #score { font-size: 24px; margin: 20px 0; }
+        /* ... existing styles ... */
     </style>
 </head>
 <body>
@@ -38,15 +20,13 @@
     <button class="button" id="load-progress-btn" style="display: none;">Загрузить прогресс</button>
 
     <script>
-        // Telegram WebApp Initialization
         const tg = window.Telegram.WebApp;
         tg.ready();
 
         const user = tg.initDataUnsafe?.user;
         let score = 0;
 
-        // Firebase Configuration
-    const firebaseConfig = {
+        const firebaseConfig = { const firebaseConfig = 
   apiKey: "AIzaSyAKw7TvjMqrNAgCP4lMjVFxaCWGfUSSXvI",
   authDomain: "glitch-wallet-test.firebaseapp.com",
   databaseURL: "https://glitch-wallet-test-default-rtdb.firebaseio.com",
@@ -55,28 +35,20 @@
   messagingSenderId: "153863222027",
   appId: "1:153863222027:web:2c09f74d5f7e6af921a80e",
   measurementId: "G-QMQTJJV0S2"
-};
-
-        // Initialize Firebase
+ };
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Display user info
         if (user && user.username) {
-            document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})!`;
+            displayUserInfo();
             document.getElementById('save-progress-btn').style.display = 'block';
             document.getElementById('load-progress-btn').style.display = 'block';
         } else {
-            document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
+            displayError('Ошибка: У пользователя отсутствует username.');
         }
 
-        // Clicker functionality
-        document.getElementById('clicker-btn').addEventListener('click', () => {
-            score++;
-            document.getElementById('score').textContent = `Счёт: ${score}`;
-        });
+        document.getElementById('clicker-btn').addEventListener('click', () => incrementScore());
 
-        // Save progress to Firestore
         async function saveProgress() {
             try {
                 await db.collection('players').doc(user.username).set({
@@ -86,11 +58,10 @@
                 });
                 alert('Прогресс сохранён!');
             } catch (error) {
-                alert('Ошибка сохранения: ' + error.message);
+                alert(`Ошибка сохранения: ${error.message}`);
             }
         }
 
-        // Load progress from Firestore
         async function loadProgress() {
             try {
                 const docRef = db.collection('players').doc(user.username);
@@ -99,17 +70,33 @@
                 if (docSnap.exists) {
                     const data = docSnap.data();
                     score = data.score;
-                    document.getElementById('score').textContent = `Счёт: ${score}`;
+                    updateScore();
                     alert(`Прогресс загружен! Счёт: ${score}`);
                 } else {
                     alert('Прогресс не найден.');
                 }
             } catch (error) {
-                alert('Ошибка загрузки: ' + error.message);
+                alert(`Ошибка загрузки: ${error.message}`);
             }
         }
 
-        // Bind buttons
+        function displayUserInfo() {
+            document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})!`;
+        }
+
+        function displayError(message) {
+            document.getElementById('user-info').textContent = message;
+        }
+
+        function incrementScore() {
+            score++;
+            updateScore();
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = `Счёт: ${score}`;
+        }
+
         document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
         document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
     </script>
