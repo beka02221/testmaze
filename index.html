@@ -26,7 +26,7 @@
             background-color: #0088cc;
             color: white;
             cursor: pointer;
-            margin-top: 20px;
+            margin: 10px 0;
         }
         .button:hover {
             background-color: #005f99;
@@ -34,27 +34,19 @@
     </style>
 </head>
 <body>
-    <h1>Добро пожаловать в игру!123</h1>
+    <h1>Добро пожаловать в игру!</h1>
     <p id="user-info">Загрузка данных...</p>
-    <button class="button" id="save-progress-btn" style="display: none;">Сохранить прогресс</button>
-    <button class="button" id="load-progress-btn" style="display: none;">Загрузить прогресс</button>
+    <div id="buttons-container" style="display: none;">
+        <button class="button" id="save-progress-btn">Сохранить прогресс</button>
+        <button class="button" id="load-progress-btn">Загрузить прогресс</button>
+    </div>
 
     <script>
-        // Telegram WebApp инициализация
+        // Telegram WebApp initialization
         const tg = window.Telegram.WebApp;
         tg.ready();
 
-        // Получаем данные пользователя
-        const user = tg.initDataUnsafe?.user;
-
-        // Проверяем наличие username
-        if (!user || !user.username) {
-            document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
-        } else {
-            document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})! Добро пожаловать в игру.`;
-        }
-
-        // Firebase конфигурация
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAKw7TvjMqrNAgCP4lMjVFxaCWGfUSSXvI",
             authDomain: "glitch-wallet-test.firebaseapp.com",
@@ -65,20 +57,33 @@
             measurementId: "G-V6F0LRQRG5"
         };
 
-        // Инициализация Firebase
+        // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Функция сохранения прогресса
+        // Get user info from Telegram
+        const user = tg.initDataUnsafe?.user;
+
+        // Display user info or error
+        const userInfoElement = document.getElementById('user-info');
+        const buttonsContainer = document.getElementById('buttons-container');
+
+        if (user && user.username) {
+            userInfoElement.textContent = `Привет, ${user.first_name} (@${user.username})! Добро пожаловать в игру.`;
+            buttonsContainer.style.display = 'block';
+        } else {
+            userInfoElement.textContent = 'Ошибка: У пользователя отсутствует username.';
+        }
+
+        // Save progress function
         async function saveProgress() {
             try {
                 const progress = {
                     username: user.username,
-                    score: Math.floor(Math.random() * 100), // Пример случайного прогресса
+                    score: Math.floor(Math.random() * 100),
                     timestamp: new Date().toISOString(),
                 };
 
-                // Сохраняем данные в Firestore
                 await db.collection('players').doc(user.username).set(progress);
                 alert('Прогресс сохранён!');
             } catch (error) {
@@ -87,7 +92,7 @@
             }
         }
 
-        // Функция загрузки прогресса
+        // Load progress function
         async function loadProgress() {
             try {
                 const docRef = db.collection('players').doc(user.username);
@@ -105,15 +110,9 @@
             }
         }
 
-        // Показываем кнопки после инициализации
-        if (user && user.username) {
-            document.getElementById('save-progress-btn').style.display = 'block';
-            document.getElementById('load-progress-btn').style.display = 'block';
-
-            // Привязываем события к кнопкам
-            document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
-            document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
-        }
+        // Attach event listeners to buttons
+        document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
+        document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
     </script>
 </body>
 </html>
