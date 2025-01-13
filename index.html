@@ -31,13 +31,22 @@
         .button:hover {
             background-color: #005f99;
         }
+        #clicker-game {
+            margin-top: 20px;
+        }
+        #clicker-score {
+            font-size: 20px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
     <h1>Добро пожаловать в игру!</h1>
     <p id="user-info">Загрузка данных...</p>
-    <button class="button" id="save-progress-btn" style="display: none;">Сохранить прогресс</button>
-    <button class="button" id="load-progress-btn" style="display: none;">Загрузить прогресс</button>
+    <div id="clicker-game" style="display: none;">
+        <p id="clicker-score">Счёт: 0</p>
+        <button class="button" id="click-button">Клик!</button>
+    </div>
 
     <script>
         // Telegram WebApp инициализация
@@ -47,66 +56,62 @@
         // Получаем данные пользователя
         const user = tg.initDataUnsafe?.user;
 
-        // Проверяем наличие username
-        if (!user || !user.username) {
-            document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
-        } else {
-            document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})! Добро пожаловать в игру.`;
-        }
-
         // Firebase конфигурация
         const firebaseConfig = {
-  apiKey: "AIzaSyAKw7TvjMqrNAgCP4lMjVFxaCWGfUSSXvI",
-  authDomain: "glitch-wallet-test.firebaseapp.com",
-  databaseURL: "https://glitch-wallet-test-default-rtdb.firebaseio.com",
-  projectId: "glitch-wallet-test",
-  storageBucket: "glitch-wallet-test.firebasestorage.app",
-  messagingSenderId: "153863222027",
-  appId: "1:153863222027:web:bca641b7c3bd890a21a80e",
-  measurementId: "G-V6F0LRQRG5"
-};
+            apiKey: "AIzaSyAKw7TvjMqrNAgCP4lMjVFxaCWGfUSSXvI",
+            authDomain: "glitch-wallet-test.firebaseapp.com",
+            databaseURL: "https://glitch-wallet-test-default-rtdb.firebaseio.com",
+            projectId: "glitch-wallet-test",
+            storageBucket: "glitch-wallet-test.appspot.com",
+            messagingSenderId: "153863222027",
+            appId: "1:153863222027:web:bca641b7c3bd890a21a80e",
+            measurementId: "G-V6F0LRQRG5"
+        };
 
         // Инициализация Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Функция сохранения прогресса
-        function saveProgress() {
-            const progress = {
+        // Автоматическое сохранение пользователя в базу данных
+        if (user && user.username) {
+            const userData = {
                 username: user.username,
-                score: Math.floor(Math.random() * 100), // Пример случайного прогресса
+                first_name: user.first_name || '',
+                last_name: user.last_name || '',
+                score: 0, // Начальный счёт
                 timestamp: new Date().toISOString(),
             };
 
-            // Сохраняем прогресс в Firebase (по username)
-            firebase.database().ref('players/' + user.username).set(progress)
-                .then(() => alert('Прогресс сохранён!'))
-                .catch((error) => alert('Ошибка сохранения: ' + error.message));
-        }
-
-        // Функция загрузки прогресса
-        function loadProgress() {
-            firebase.database().ref('players/' + user.username).get()
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.val();
-                        alert(`Прогресс загружен!\nСчёт: ${data.score}\nПоследнее сохранение: ${data.timestamp}`);
-                    } else {
-                        alert('Прогресс не найден.');
-                    }
+            firebase.database().ref('players/' + user.username).set(userData)
+                .then(() => {
+                    document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})! Добро пожаловать в игру.`;
+                    document.getElementById('clicker-game').style.display = 'block';
                 })
-                .catch((error) => alert('Ошибка загрузки: ' + error.message));
+                .catch((error) => {
+                    document.getElementById('user-info').textContent = 'Ошибка сохранения пользователя: ' + error.message;
+                });
+        } else {
+            document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
         }
 
-        // Показываем кнопки после инициализации
-        if (user && user.username) {
-            document.getElementById('save-progress-btn').style.display = 'block';
-            document.getElementById('load-progress-btn').style.display = 'block';
+        // Логика мини-игры "Кликер"
+        let score = 0;
+        const scoreDisplay = document.getElementById('clicker-score');
 
-            // Привязываем события к кнопкам
-            document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
-            document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
-        }
+        document.getElementById('click-button').addEventListener('click', () => {
+            score++;
+            scoreDisplay.textContent = `Счёт: ${score}`;
+
+            // Обновление счёта в Firebase
+            if (user && user.username) {
+                firebase.database().ref('players/' + user.username).update({
+                    score: score,
+                    timestamp: new Date().toISOString(),
+                }).catch((error) => {
+                    console.error('Ошибка обновления счёта:', error);
+                });
+            }
+        });
     </script>
 </body>
 </html>
