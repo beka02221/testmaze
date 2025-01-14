@@ -6,18 +6,15 @@
     <title>Telegram MiniApp Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin: 0;
-            padding: 20px;
             background-color: #f4f4f9;
+            margin: 0; padding: 20px;
         }
-        h1 {
-            color: #0088cc;
-        }
+        h1 { color: #0088cc; }
         .button {
             padding: 10px 20px;
             font-size: 16px;
@@ -28,34 +25,46 @@
             cursor: pointer;
             margin: 10px;
         }
-        .button:hover {
-            background-color: #005f99;
-        }
-        .score {
-            font-size: 20px;
-            color: #333;
-            margin-top: 20px;
-        }
+        .button:hover { background-color: #005f99; }
+        #score { font-size: 24px; margin: 20px 0; }
     </style>
 </head>
 <body>
-    <h1>Добро пожаловать в игру!</h1>
+    <h1>Мини-игра: Кликер</h1>
     <p id="user-info">Загрузка данных...</p>
-    <button class="button" id="clicker-btn" style="display: none;">Кликни!</button>
-    <p class="score" id="score-display" style="display: none;">Счёт: 0</p>
+    <p id="score">Счёт: 0</p>
+    <button class="button" id="clicker-btn" style="display: none;">Кликни меня!</button>
     <button class="button" id="save-progress-btn" style="display: none;">Сохранить прогресс</button>
     <button class="button" id="load-progress-btn" style="display: none;">Загрузить прогресс</button>
 
     <script>
-        // Telegram WebApp инициализация
+        // Telegram WebApp Initialization
         const tg = window.Telegram.WebApp;
         tg.ready();
 
-        // Получаем данные пользователя
-        const user = tg.initDataUnsafe?.user;
+        let score = 0;
+        let username = '';
 
-        // Firebase конфигурация
-        const firebaseConfig = {
+        // Получаем данные пользователя из Telegram WebApp
+        function initializeUser() {
+            const user = tg.initDataUnsafe?.user;
+
+            if (user && user.username) {
+                username = user.username; // Устанавливаем username как идентификатор
+                document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})!`;
+                document.getElementById('clicker-btn').style.display = 'block';
+                document.getElementById('save-progress-btn').style.display = 'block';
+                document.getElementById('load-progress-btn').style.display = 'block';
+                initializeFirebase(); // Инициализация Firebase только после получения данных
+            } else {
+                document.getElementById('user-info').textContent = 'Ошибка: Данные пользователя отсутствуют.';
+                console.error('Telegram WebApp не передал данные пользователя.');
+            }
+        }
+
+        // Firebase Configuration
+        function initializeFirebase() {
+           const firebaseConfig = {
   apiKey: "AIzaSyB90ev3fJRDKmn64hLTJaWjVjpHQtMjhLg",
   authDomain: "test-with-likes.firebaseapp.com",
   databaseURL: "https://test-with-likes-default-rtdb.firebaseio.com",
@@ -66,81 +75,52 @@
   measurementId: "G-WJNF0HSN9P"
 };
 
-        // Инициализация Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+            // Initialize Firebase
+            const app = firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
 
-        // Автоматическое сохранение пользователя
-        if (user && user.username) {
-            const userRef = db.ref('players/' + user.username);
-            userRef.once('value')
-                .then(snapshot => {
-                    if (!snapshot.exists()) {
-                        userRef.set({
-                            username: user.username,
-                            score: 0,
-                            timestamp: new Date().toISOString()
-                        });
-                    }
-                })
-                .catch(error => console.error('Ошибка сохранения пользователя:', error));
-        }
+            // Кнопка: Сохранить прогресс
+            document.getElementById('save-progress-btn').addEventListener('click', async () => {
+                try {
+                    await db.collection('players').doc(username).set({
+                        username,
+                        score,
+                        timestamp: new Date().toISOString(),
+                    });
+                    alert('Прогресс сохранён!');
+                } catch (error) {
+                    alert('Ошибка сохранения: ' + error.message);
+                }
+            });
 
-        // Установка приветственного сообщения
-        if (!user || !user.username) {
-            document.getElementById('user-info').textContent = 'Ошибка: У пользователя отсутствует username.';
-        } else {
-            document.getElementById('user-info').textContent = `Привет, ${user.first_name} (@${user.username})! Добро пожаловать в игру.`;
-        }
+            // Кнопка: Загрузить прогресс
+            document.getElementById('load-progress-btn').addEventListener('click', async () => {
+                try {
+                    const docRef = db.collection('players').doc(username);
+                    const docSnap = await docRef.get();
 
-        let score = 0;
-
-        // Функция обновления счёта
-        function updateScore() {
-            score += 1;
-            document.getElementById('score-display').textContent = `Счёт: ${score}`;
-        }
-
-        // Функция сохранения прогресса
-        function saveProgress() {
-            const progress = {
-                username: user.username,
-                score: score,
-                timestamp: new Date().toISOString()
-            };
-
-            db.ref('players/' + user.username).set(progress)
-                .then(() => alert('Прогресс сохранён!'))
-                .catch((error) => alert('Ошибка сохранения: ' + error.message));
-        }
-
-        // Функция загрузки прогресса
-        function loadProgress() {
-            db.ref('players/' + user.username).get()
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.val();
+                    if (docSnap.exists) {
+                        const data = docSnap.data();
                         score = data.score;
-                        document.getElementById('score-display').textContent = `Счёт: ${score}`;
-                        alert(`Прогресс загружен!\nСчёт: ${data.score}\nПоследнее сохранение: ${data.timestamp}`);
+                        document.getElementById('score').textContent = `Счёт: ${score}`;
+                        alert(`Прогресс загружен! Счёт: ${score}`);
                     } else {
                         alert('Прогресс не найден.');
                     }
-                })
-                .catch((error) => alert('Ошибка загрузки: ' + error.message));
+                } catch (error) {
+                    alert('Ошибка загрузки: ' + error.message);
+                }
+            });
         }
 
-        // Показываем кнопки и мини-игру после загрузки
-        if (user && user.username) {
-            document.getElementById('clicker-btn').style.display = 'block';
-            document.getElementById('score-display').style.display = 'block';
-            document.getElementById('save-progress-btn').style.display = 'block';
-            document.getElementById('load-progress-btn').style.display = 'block';
+        // Clicker functionality
+        document.getElementById('clicker-btn').addEventListener('click', () => {
+            score++;
+            document.getElementById('score').textContent = `Счёт: ${score}`;
+        });
 
-            document.getElementById('clicker-btn').addEventListener('click', updateScore);
-            document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
-            document.getElementById('load-progress-btn').addEventListener('click', loadProgress);
-        }
+        // Initialize user and Firebase
+        initializeUser();
     </script>
 </body>
 </html>
