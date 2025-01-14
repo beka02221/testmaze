@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram MiniApp Game11</title>
+    <title>Telegram MiniApp Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"></script>
@@ -12,7 +12,8 @@
             font-family: Arial, sans-serif;
             text-align: center;
             background-color: #f4f4f9;
-            margin: 0; padding: 20px;
+            margin: 0;
+            padding: 20px;
         }
         h1 { color: #0088cc; }
         .button {
@@ -45,6 +46,21 @@
         let score = 0;
         let username = '';
 
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB90ev3fJRDKmn64hLTJaWjVjpHQtMjhLg",
+            authDomain: "test-with-likes.firebaseapp.com",
+            projectId: "test-with-likes",
+            storageBucket: "test-with-likes.appspot.com",
+            messagingSenderId: "764738820142",
+            appId: "1:764738820142:web:b22c6608a30e46cdcea7bf",
+            measurementId: "G-WJNF0HSN9P"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // Получаем данные пользователя из Telegram WebApp
         function initializeUser() {
             const user = tg.initDataUnsafe?.user;
@@ -55,68 +71,49 @@
                 document.getElementById('clicker-btn').style.display = 'block';
                 document.getElementById('save-progress-btn').style.display = 'block';
                 document.getElementById('load-progress-btn').style.display = 'block';
-                initializeFirebase(); // Инициализация Firebase только после получения данных
             } else {
                 document.getElementById('user-info').textContent = 'Ошибка: Данные пользователя отсутствуют.';
                 console.error('Telegram WebApp не передал данные пользователя.');
             }
         }
 
-        // Firebase Configuration
-        function initializeFirebase() {
-           const firebaseConfig = {
-  apiKey: "AIzaSyB90ev3fJRDKmn64hLTJaWjVjpHQtMjhLg",
-  authDomain: "test-with-likes.firebaseapp.com",
-  databaseURL: "https://test-with-likes-default-rtdb.firebaseio.com",
-  projectId: "test-with-likes",
-  storageBucket: "test-with-likes.appspot.com",
-  messagingSenderId: "764738820142",
-  appId: "1:764738820142:web:b22c6608a30e46cdcea7bf",
-  measurementId: "G-WJNF0HSN9P"
-};
-
-            // Initialize Firebase
-            const app = firebase.initializeApp(firebaseConfig);
-            const db = firebase.firestore();
-
-            // Кнопка: Сохранить прогресс
-            document.getElementById('save-progress-btn').addEventListener('click', async () => {
-                try {
-                    await db.collection('players').doc(username).set({
-                        username,
-                        score,
-                        timestamp: new Date().toISOString(),
-                    });
-                    alert('Прогресс сохранён!');
-                } catch (error) {
-                    alert('Ошибка сохранения: ' + error.message);
-                }
-            });
-
-            // Кнопка: Загрузить прогресс
-            document.getElementById('load-progress-btn').addEventListener('click', async () => {
-                try {
-                    const docRef = db.collection('players').doc(username);
-                    const docSnap = await docRef.get();
-
-                    if (docSnap.exists) {
-                        const data = docSnap.data();
-                        score = data.score;
-                        document.getElementById('score').textContent = `Счёт: ${score}`;
-                        alert(`Прогресс загружен! Счёт: ${score}`);
-                    } else {
-                        alert('Прогресс не найден.');
-                    }
-                } catch (error) {
-                    alert('Ошибка загрузки: ' + error.message);
-                }
-            });
-        }
-
         // Clicker functionality
         document.getElementById('clicker-btn').addEventListener('click', () => {
             score++;
             document.getElementById('score').textContent = `Счёт: ${score}`;
+        });
+
+        // Кнопка: Сохранить прогресс
+        document.getElementById('save-progress-btn').addEventListener('click', async () => {
+            try {
+                await db.collection('players').doc(username).set({
+                    username,
+                    score,
+                    timestamp: new Date().toISOString(),
+                });
+                alert('Прогресс сохранён!');
+            } catch (error) {
+                alert('Ошибка сохранения: ' + error.message);
+            }
+        });
+
+        // Кнопка: Загрузить прогресс
+        document.getElementById('load-progress-btn').addEventListener('click', async () => {
+            try {
+                const docRef = db.collection('players').doc(username);
+                const docSnap = await docRef.get();
+
+                if (docSnap.exists) {
+                    const data = docSnap.data();
+                    score = data.score;
+                    document.getElementById('score').textContent = `Счёт: ${score}`;
+                    alert(`Прогресс загружен! Счёт: ${score}`);
+                } else {
+                    alert('Прогресс не найден.');
+                }
+            } catch (error) {
+                alert('Ошибка загрузки: ' + error.message);
+            }
         });
 
         // Initialize user and Firebase
